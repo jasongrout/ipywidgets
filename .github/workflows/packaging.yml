@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Python
         uses: actions/setup-python@v6
@@ -102,7 +102,7 @@ jobs:
           python-version: ${{ matrix.python }}
           architecture: 'x64'
       - name: Checkout # For the cache keys
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Get pip cache dir
         id: pip-cache
