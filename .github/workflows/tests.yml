@@ -11,7 +11,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: '3.x'
           cache: 'pip'
           cache-dependency-path: |
             **/setup.cfg
@@ -77,7 +77,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: ['3.10', '3.11', '3.12', '3.13', 'latest']
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.x']
 
     steps:
       - uses: actions/checkout@v4
