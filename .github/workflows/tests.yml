@@ -108,7 +108,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: 'latest'
+          python-version: '3.x'
           cache: 'pip'
           cache-dependency-path: |
             **/setup.cfg
@@ -135,7 +135,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: 'latest'
+          python-version: '3.x'
           cache: 'pip'
           cache-dependency-path: |
             **/setup.cfg
