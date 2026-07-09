@@ -24,7 +24,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.14'
+          python-version: '3.x'
           architecture: 'x64'
 
       - uses: actions/cache@v3
@@ -83,16 +83,16 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu, windows]
-        python: ['3.10', '3.14']
+        python: ['3.10', 'latest']
         dist: ['ipywidgets*.tar.gz']
         include:
-          - python: '3.14'
+          - python: 'latest'
             dist: 'jupyterlab_widgets*.tar.gz'
             os: 'ubuntu'
-          - python: '3.14'
+          - python: 'latest'
             dist: 'widgetsnbextension*.tar.gz'
             os: 'ubuntu'
-          - python: '3.14'
+          - python: 'latest'
             dist: 'ipywidgets*.whl'
             os: 'ubuntu'
     steps:
