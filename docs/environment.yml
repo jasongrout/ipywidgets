@@ -10,8 +10,8 @@ dependencies:
   - packaging
   - jupyter-packaging
   - jupyterlab >=4,<5
-  - nodejs >=18
-  # dependencies
+  # pin to LTS: nodejs 26+ cannot require() the yargs 16 pulled in by lerna 5
+  - nodejs >=24,<25
   - jupyter_client
   # docs
   - docutils >=0.19
