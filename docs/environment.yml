@@ -10,16 +10,16 @@ dependencies:
   - packaging
   - jupyter-packaging
   - jupyterlab >=4,<5
-  - nodejs >=18,<19
+  - nodejs >=18
   # dependencies
   - jupyter_client
   # docs
   - docutils >=0.19
   - jupyterlab-myst
-  - myst-nb >=0.17,<0.18
+  - myst-nb >=0.17
   - pandoc
   - pydata-sphinx-theme
-  - sphinx >=5,<6
+  - sphinx
   - sphinx-autobuild
   - sphinx-autodoc-typehints
   - sphinx-copybutton

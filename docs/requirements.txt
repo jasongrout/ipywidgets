@@ -9,7 +9,7 @@ jupyterlab >=4
 jupyterlite-core >=0.3.0,<0.4.0
 jupyterlite-pyodide-kernel >=0.3.0,<0.4.0
 matplotlib
-myst-nb >=0.17,<0.18
+myst-nb >=0.17
 numpy
 packaging
 pkginfo
@@ -17,7 +17,7 @@ pydata-sphinx-theme
 recommonmark
 scikit-image
 scikit-learn
-sphinx >=1.4.6
+sphinx
 sphinx-autobuild
 sphinx-autodoc-typehints
 sphinx-copybutton
