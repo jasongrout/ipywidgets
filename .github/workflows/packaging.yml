@@ -83,16 +83,16 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu, windows]
-        python: ['3.10', 'latest']
+        python: ['3.10', '3.x']
         dist: ['ipywidgets*.tar.gz']
         include:
-          - python: 'latest'
+          - python: '3.x'
             dist: 'jupyterlab_widgets*.tar.gz'
             os: 'ubuntu'
-          - python: 'latest'
+          - python: '3.x'
             dist: 'widgetsnbextension*.tar.gz'
             os: 'ubuntu'
-          - python: 'latest'
+          - python: '3.x'
             dist: 'ipywidgets*.whl'
             os: 'ubuntu'
     steps:
