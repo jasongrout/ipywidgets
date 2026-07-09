@@ -14,7 +14,6 @@ numpy
 packaging
 pkginfo
 pydata-sphinx-theme
-recommonmark
 scikit-image
 scikit-learn
 sphinx
