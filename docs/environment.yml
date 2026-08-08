@@ -3,23 +3,23 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
-  - python >=3.11,<3.12
-  # build
+  - python >=3.14,<3.15  # build
   - python-build
   - pip
   - packaging
   - jupyter-builder
   - jupyterlab >=4,<5
-  - nodejs >=18,<19
+  # pin to nodejs LTS: nodejs 26+ cannot require() the yargs 16 pulled in by lerna 5
+  - nodejs >=24,<25
   # dependencies
   - jupyter_client
   # docs
   - docutils >=0.19
   - jupyterlab-myst
-  - myst-nb >=0.17,<0.18
+  - myst-nb >=0.17
   - pandoc
   - pydata-sphinx-theme
-  - sphinx >=5,<6
+  - sphinx
   - sphinx-autobuild
   - sphinx-autodoc-typehints
   - sphinx-copybutton
