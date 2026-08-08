@@ -31,7 +31,7 @@ cd ui-tests
 yarn install
 ```
 
-Galata needs to connect to a running instance of JupyterLab 3 to run UI tests. First launch JupyterLab and keep it running in a terminal window.
+Galata needs to connect to a running instance of JupyterLab to run UI tests. First launch JupyterLab and keep it running in a terminal window.
 
 ```sh
 # in ui-tests directory
