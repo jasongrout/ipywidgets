@@ -42,7 +42,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install jupyterlab==4.0.0
+          python -m pip install jupyterlab==4.0.0 jupyter_builder
       - name: yarn install, build, test
         run: |
           jlpm --immutable
@@ -126,6 +126,48 @@ jobs:
           jlpm prettier
           diff -u ./packages/schema/jupyterwidgetmodels.latest.md ./spec.md
 
+  labextension-compat:
+    name: Labextension smoke test on JupyterLab ${{ matrix.jupyterlab || 'latest' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Oldest and newest supported JupyterLab 4.x
+        jupyterlab: ['==4.0.*', '']
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: |
+            **/setup.cfg
+            **/requirements*.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "jupyterlab${{ matrix.jupyterlab }}" jupyter_builder
+
+      - name: Build and install the extension
+        run: |
+          jlpm --immutable
+          jlpm build
+          pip install ./python/jupyterlab_widgets
+          jupyter labextension list
+
+      - name: Install test dependencies
+        working-directory: ui-tests
+        run: |
+          jlpm --immutable
+          npx playwright install chromium
+
+      - name: Run labextension smoke test
+        working-directory: ui-tests
+        run: |
+          npx playwright test tests/plugin.test.ts
+
   ui-test:
     name: Visual Regression
     runs-on: ubuntu-latest
@@ -144,7 +186,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -U jupyterlab==4.5.8 jupyter-packaging~=0.10
+          python -m pip install -U jupyterlab jupyter_builder
 
       - name: Build and Install ipywidgets
         run: |

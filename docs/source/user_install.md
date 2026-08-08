@@ -4,7 +4,7 @@ Users can install the current version of **ipywidgets** with
 [pip](https://pip.pypa.io/en/stable/) or
 [conda](https://conda.readthedocs.io/en/latest/).
 
-In most cases, installing the Python `ipywidgets` package will also automatically configure classic Jupyter Notebook and JupyterLab 3.x to display ipywidgets. With pip, do:
+In most cases, installing the Python `ipywidgets` package will also automatically configure Jupyter Notebook and JupyterLab to display ipywidgets. With pip, do:
 
 ```bash
 pip install ipywidgets
@@ -16,9 +16,9 @@ or with conda, do:
 conda install -c conda-forge ipywidgets
 ```
 
-## Installing in JupyterLab 3.x
+## Installing in JupyterLab
 
-Most of the time, installing `ipywidgets` automatically configures JupyterLab 3.x to use widgets. The `ipywidgets` package does this by depending on the `jupyterlab_widgets` package, which configures JupyterLab 3 to display and use widgets.
+Most of the time, installing `ipywidgets` automatically configures JupyterLab to use widgets. The `ipywidgets` package does this by depending on the `jupyterlab_widgets` package, which configures JupyterLab to display and use widgets.
 
 If JupyterLab and the IPython kernel are installed in different
 environments (for example, separate environments are providing different
