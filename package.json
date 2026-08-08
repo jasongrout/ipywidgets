@@ -18,7 +18,6 @@
     "eslint": "eslint . --fix --ignore-path .gitignore --ext .ts,.tsx",
     "eslint:check": "eslint . --ignore-path .gitignore --ext .ts,.tsx",
     "integrity": "node scripts/package-integrity.js",
-    "integrity2": "node buildutils/lib/integrity.js",
     "lint": "yarn && yarn prettier && yarn eslint",
     "lint:check": "yarn prettier:check && yarn eslint:check",
     "prettier": "yarn prettier:base --list-different --write",
