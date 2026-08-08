@@ -46,7 +46,7 @@ pip install -v -e "./python/ipywidgets[test]"
 
 if test "$skip_jupyter_lab" != yes; then
     echo -n "jupyterlab_ipywidgets"
-    pip install jupyter_packaging
+    pip install jupyter_builder
     pip install -ve ./python/jupyterlab_widgets
-    jupyter labextension develop ./python/jupyterlab_widgets --overwrite
+    jupyter-builder develop ./python/jupyterlab_widgets --overwrite
 fi
