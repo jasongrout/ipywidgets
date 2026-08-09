@@ -320,6 +320,33 @@ def test_counter_stays_balanced_when_enter_does_not_capture():
 # passes on main; it adds the missing coverage (no xfail).
 # ---------------------------------------------------------------------------
 
+def test_capture_works_without_shell_parent_api():
+    """Kernels that are not ipykernel must keep working, with no set_parent.
+
+    Mirrors the surface of a real xeus-python kernel (verified against
+    xeus-python 0.19.0 / xeus 6.0.5): the shell is a plain IPython
+    ``InteractiveShell`` subclass with **no** ``get_parent``/``set_parent``,
+    and ``shell.kernel`` exposes ``get_parent()`` returning a full parent
+    request.  Capture must work via the kernel fallback alone and must not
+    require any parent-mutation API.  Passes on current main; guards any
+    future fix against regressing non-ipykernel kernels.
+    """
+    kernel_parent = {'header': {'msg_id': 'xeus-cell-1'}}
+
+    # No get_parent/set_parent on the shell -- only kernel.get_parent().
+    shell = SimpleNamespace(
+        kernel=SimpleNamespace(get_parent=lambda: kernel_parent),
+        showtraceback=_reraise_traceback,
+    )
+
+    with _patched_shell(shell):
+        widget = widget_output.Output()
+        with widget:
+            observed = widget.msg_id
+        assert observed == 'xeus-cell-1'
+        assert widget.msg_id == ''
+
+
 def test_set_parent_falls_back_to_kernel_parent():
     kernel_parent = {'header': {'msg_id': 'kernel-msg-id'}}
     parent_calls = []
