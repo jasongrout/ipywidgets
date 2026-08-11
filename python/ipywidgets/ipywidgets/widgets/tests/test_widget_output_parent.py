@@ -369,6 +369,36 @@ def _patched_stdout(stream):
         sys.stdout = original
 
 
+def test_prefers_public_thread_parent_api():
+    """With ipykernel's public thread-scoped parent API (ipykernel#1546),
+    the widget delegates pinning entirely: ``ip.set_thread_parent(parent)``
+    on enter (passing the full parent request), ``ip.reset_thread_parent``
+    with the returned tokens on exit — and it never calls the shell-wide
+    ``set_parent`` or touches ContextVars itself.
+    """
+    request_obj = {'header': {'msg_id': 'cell-1'}}
+    tokens = object()
+    calls = []
+
+    shell = SimpleNamespace(
+        kernel=SimpleNamespace(get_parent=lambda: request_obj),
+        get_parent=lambda: request_obj,
+        set_parent=lambda parent: calls.append(('set_parent', parent)),
+        set_thread_parent=lambda parent: (calls.append(('set', parent)), tokens)[1],
+        reset_thread_parent=lambda t: calls.append(('reset', t)),
+        showtraceback=_reraise_traceback,
+    )
+
+    with _patched_shell(shell):
+        widget = widget_output.Output()
+        with widget:
+            assert widget.msg_id == 'cell-1'
+        assert widget.msg_id == ''
+
+    # Full request in, same opaque tokens back out; set_parent never called.
+    assert calls == [('set', request_obj), ('reset', tokens)]
+
+
 def test_pins_and_restores_thread_stream_parent():
     stream = FakeOutStream()
     shell = _shell_with_static_parents(FULL_REQUEST, None)
