@@ -64,7 +64,7 @@ class TestOutputWidget(TestCase):
                 assert widget.msg_id == msg_id
             assert widget.msg_id == ''
 
-    def test_set_parent_when_capturing(self):
+    def test_shell_parent_used_without_set_parent(self):
         msg_id = 'msg-id'
         shell_parent = {'header': {'msg_id': msg_id}}
         kernel_parent = {'header': {'msg_id': 'kernel-msg-id'}}
@@ -97,7 +97,10 @@ class TestOutputWidget(TestCase):
             with widget:
                 assert widget.msg_id == msg_id
 
-        assert parent_calls == [shell_parent]
+        # The shell parent supplies the msg_id, but the shell-wide
+        # set_parent (which also rewrites ipykernel's process-global parent
+        # fallbacks) must never be called.
+        assert parent_calls == []
 
     def test_clear_output(self):
         msg_id = 'msg-id'

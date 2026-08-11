@@ -7,6 +7,8 @@ Represents a widget that can be used to display output within the widget area.
 """
 
 import sys
+import threading
+from contextvars import ContextVar
 from functools import wraps
 
 from .domwidget import DOMWidget
@@ -62,6 +64,13 @@ class Output(DOMWidget):
 
     __counter = 0
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__counter_lock = threading.Lock()
+        # Per-thread stack of capture records so nested/threaded enter/exit
+        # pairs stay balanced and each thread restores exactly what it set.
+        self.__records = threading.local()
+
     def clear_output(self, *pargs, **kwargs):
         """
         Clear the content of the output widget.
@@ -104,6 +113,66 @@ class Output(DOMWidget):
             return inner
         return capture_decorator
 
+    @staticmethod
+    def _resolve_parent_header(ip, kernel):
+        """The parent header to capture for the calling thread, or None.
+
+        Prefer the parent the calling thread's stream output will actually
+        be attributed to: ``OutStream.parent_header`` resolves per-thread
+        state on ipykernel >= 6 (thread-ancestry map on ipykernel 6, a
+        per-thread ContextVar with a process-global fallback on 7). Fall
+        back to the shell's parent request, then the kernel's, for streams
+        that do not expose a parent (non-ipykernel kernels, redirected
+        stdout).
+        """
+        header = getattr(sys.stdout, "parent_header", None)
+        if isinstance(header, dict) and header.get("msg_id"):
+            return header
+
+        parent_request = None
+        if ip is not None and hasattr(ip, "get_parent"):
+            shell_parent = ip.get_parent()
+            # Only accept a full parent *request*; ipykernel display
+            # publishers store bare header dicts, which must not shadow the
+            # kernel fallback below.
+            if isinstance(shell_parent, dict) and shell_parent.get("header"):
+                parent_request = shell_parent
+        if parent_request is None:
+            if hasattr(kernel, "get_parent"):
+                # ipykernel >= 6 keeps parent requests on the kernel.
+                parent_request = kernel.get_parent()
+            elif hasattr(kernel, "_parent_header"):
+                # ipykernel < 6: kernel._parent_header is the parent *request*
+                parent_request = kernel._parent_header
+
+        if isinstance(parent_request, dict):
+            header = parent_request.get("header")
+            if isinstance(header, dict) and header.get("msg_id"):
+                return header
+        return None
+
+    @staticmethod
+    def _thread_parent_vars(ip):
+        """ContextVars holding the calling thread's output parent.
+
+        ipykernel's ``OutStream`` (>= 6.18) and ``ZMQDisplayPublisher``
+        (>= 7) keep the per-thread parent in a ``_parent_header``
+        ContextVar. Setting it affects only the current thread and is
+        exactly reversible with the returned token — unlike
+        ``shell.set_parent``, which also rewrites process-global state
+        shared with every other thread. Objects without such a ContextVar
+        (other kernels such as xeus-python, redirected streams) are
+        skipped, leaving their behavior unchanged.
+        """
+        candidates = [sys.stdout, sys.stderr]
+        if ip is not None:
+            candidates.append(getattr(ip, "display_pub", None))
+        return [
+            var for var in
+            (getattr(obj, "_parent_header", None) for obj in candidates)
+            if isinstance(var, ContextVar)
+        ]
+
     def __enter__(self):
         """Called upon entering output widget context manager."""
         self._flush()
@@ -114,32 +183,25 @@ class Output(DOMWidget):
         elif self.comm is not None and getattr(self.comm, 'kernel', None) is not None:
             kernel = self.comm.kernel
 
+        record = {'tokens': (), 'captured': False}
         if kernel:
-            parent_request = None
-            if ip and hasattr(ip, "get_parent"):
-                # Prefer the shell parent request so display hooks and streams
-                # are refreshed from the same message below.
-                shell_parent = ip.get_parent()
-                if shell_parent:
-                    parent_request = shell_parent
-            if not parent_request:
-                if hasattr(kernel, "get_parent"):
-                    # Fallback for contexts without an active shell parent:
-                    # ipykernel >= 6 keeps parent requests on the kernel.
-                    kernel_parent = kernel.get_parent()
-                elif hasattr(kernel, "_parent_header"):
-                    # ipykernel < 6: kernel._parent_header is the parent *request*
-                    kernel_parent = kernel._parent_header
-                else:
-                    kernel_parent = None
-                if kernel_parent:
-                    parent_request = kernel_parent
-
-            if parent_request and parent_request.get("header"):
-                if ip and hasattr(ip, "set_parent"):
-                    ip.set_parent(parent_request)
-                self.msg_id = parent_request["header"]["msg_id"]
-                self.__counter += 1
+            header = self._resolve_parent_header(ip, kernel)
+            if header:
+                # Pin the calling thread's stream/display parents to the
+                # captured parent for the duration of the block, so output
+                # produced in this thread carries the same parent msg_id the
+                # frontend hook matches on.
+                record['tokens'] = tuple(
+                    (var, var.set(header)) for var in self._thread_parent_vars(ip)
+                )
+                record['captured'] = True
+                with self.__counter_lock:
+                    self.__counter += 1
+                self.msg_id = header['msg_id']
+        stack = getattr(self.__records, 'stack', None)
+        if stack is None:
+            stack = self.__records.stack = []
+        stack.append(record)
 
     def __exit__(self, etype, evalue, tb):
         """Called upon exiting output widget context manager."""
@@ -162,9 +224,19 @@ class Output(DOMWidget):
                     u'ename': etype.__name__
                     })
         self._flush()
-        self.__counter -= 1
-        if self.__counter == 0:
-            self.msg_id = ''
+        stack = getattr(self.__records, 'stack', None)
+        record = stack.pop() if stack else {'tokens': (), 'captured': False}
+        # Restore the thread's previous parents exactly; the override must
+        # not outlive the block.
+        for var, token in reversed(record['tokens']):
+            var.reset(token)
+        if record['captured']:
+            # Only decrement when the matching __enter__ captured, so the
+            # counter stays balanced and msg_id cleanup always fires.
+            with self.__counter_lock:
+                self.__counter -= 1
+                if self.__counter == 0:
+                    self.msg_id = ''
         # suppress exceptions when in IPython, since they are shown above,
         # otherwise let someone else handle it
         return True if kernel else None

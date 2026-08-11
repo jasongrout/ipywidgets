@@ -1,36 +1,30 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 
-"""Real-kernel regression tests for the parent handling from ipywidgets#4021.
+"""Real-kernel regression tests for the Output widget's parent handling.
 
 Unlike test_widget_output_parent.py (which emulates ipykernel with mocks),
 these tests start an actual ipykernel via jupyter_client, replay the
-problematic multi-threaded notebook scenarios, and assert on the parent
-attribution of the iopub messages the kernel really publishes.
+multi-threaded notebook scenarios that broke with the ``ip.set_parent()``
+approach of ipywidgets#4021, and assert on the parent attribution of the
+iopub messages the kernel really publishes.
 
 The scenarios are driven by threading.Events set from later cells, so the
 interleaving of cells and background threads is exact — no sleeps, no timing
 races.
 
-ipykernel 6 and 7 attribute background-thread output differently, so the
-expected failures are version-conditional:
+ipykernel 6 and 7 attribute background-thread output differently, and the
+assertions account for both:
 
 * ipykernel >= 7: ``OutStream.parent_header`` is a per-thread ContextVar
-  falling back to a process-global value; ``set_parent`` writes both.  The
-  ``ip.set_parent()`` call in ``Output.__enter__`` therefore (a) rewrites the
-  global fallback used by unrelated threads and (b) pins the capturing
-  thread's ContextVar forever (nothing restores it).
+  falling back to a process-global value.  A fresh thread resolves the
+  global (the newest cell); the widget pins the thread's ContextVar only
+  for the duration of a capture block and restores it on exit.
 * ipykernel 6: additionally tracks, for every thread, the cell that spawned
   it (``OutStream._thread_to_parent_header``, populated by a
   ``threading.Thread`` monkeypatch) and attributes thread output to that
-  cell.  The ContextVar written by ``set_parent`` takes priority over that
-  correct ancestry attribution, and the parent passed to ``set_parent`` comes
-  from ``shell.get_parent()``, which on ipykernel 6 is a process-global that
-  always points at the *newest* cell.
-
-Each test asserts the correct behavior and is marked xfail(strict=True) for
-the ipykernel versions where current main gets it wrong, mirroring the style
-of test_widget_output_parent.py.
+  cell.  Outside capture blocks that correct ancestry attribution must be
+  left untouched.
 """
 
 import time
@@ -132,6 +126,26 @@ class KernelHarness:
                     values.append(state['msg_id'])
         return values
 
+    def stream_captured_by(self, needle, comm_id):
+        """Whether the frontend Output hook would capture the stream message.
+
+        Replays the iopub messages in order (as a frontend would) tracking
+        the widget's synced msg_id; the message is captured iff its parent
+        equals the widget's msg_id when it arrives.
+        """
+        active = ''
+        for m in self.msgs:
+            if (m['msg_type'] == 'comm_msg'
+                    and m['content'].get('comm_id') == comm_id):
+                data = m['content'].get('data', {})
+                state = data.get('state') or {}
+                if data.get('method') == 'update' and 'msg_id' in state:
+                    active = state['msg_id']
+            elif (m['msg_type'] == 'stream'
+                    and needle in m['content']['text']):
+                return bool(active) and m['parent_header'].get('msg_id') == active
+        raise AssertionError('no stream message containing %r' % needle)
+
 
 @pytest.fixture(scope='module')
 def kernel():
@@ -190,42 +204,34 @@ threading.Thread(target=worker_b, daemon=True).start()
     return kernel
 
 
-@pytest.mark.xfail(
-    condition=IPYKERNEL_MAJOR >= 7,
-    strict=True,
-    reason="ipywidgets#4021: Output.__enter__ calls ip.set_parent() from the "
-           "capturing thread; on ipykernel >= 7 that rewrites the "
-           "process-global parent fallback, so output from unrelated threads "
-           "is attributed to the captured cell",
-)
 def test_unrelated_thread_output_not_attributed_to_captured_cell(clobber_scenario):
     kernel = clobber_scenario
     # Worker B has nothing to do with the widget.  Its print must not be
     # attributed to the cell worker A is capturing for.  (On ipykernel 6 B
-    # is protected by the thread-ancestry attribution and this passes; on
-    # ipykernel 7 B resolves the global fallback that A just rewrote.)
+    # is protected by the thread-ancestry attribution; on ipykernel 7 B
+    # resolves the global fallback, which capturing must not rewrite.)
     assert kernel.stream_parent('hello from B') != 's1-cell-a', (
         "unrelated thread output was attributed to the captured cell"
     )
 
 
-@pytest.mark.xfail(
-    condition=IPYKERNEL_MAJOR < 7,
-    strict=True,
-    reason="ipywidgets#4021: on ipykernel 6, shell.get_parent() is a "
-           "process-global that points at the newest cell, and set_parent "
-           "overrides ipykernel 6's correct thread-ancestry attribution "
-           "with it — so the capturing thread's output drifts to whatever "
-           "cell ran last instead of staying with its own cell",
-)
-def test_capturing_thread_output_stays_with_its_cell(clobber_scenario):
+def test_capturing_thread_output_lands_in_widget(clobber_scenario):
     kernel = clobber_scenario
-    # Worker A belongs to cell-a: it started there and captured there.  Its
-    # later output (from the re-entered context) should still be attributed
-    # to cell-a, not to whichever cell happens to be newest.
-    assert kernel.stream_parent('A second') == 's1-cell-a', (
-        "the capturing thread's output drifted to a newer, unrelated cell"
-    )
+    # The point of `with out:` from a thread: whatever parent the capture
+    # resolves, the thread's output inside the block must carry it, so the
+    # frontend hook routes the output into the widget.
+    comm_id = kernel.output_comm_id('s1-setup')
+    assert kernel.stream_captured_by('A first', comm_id)
+    assert kernel.stream_captured_by('A second', comm_id)
+    if IPYKERNEL_MAJOR < 7:
+        # ipykernel 6 knows the thread's own cell (ancestry); the capture
+        # must respect it rather than override it with the newest cell.
+        assert kernel.stream_parent('A second') == 's1-cell-a'
+    else:
+        # ipykernel 7 has no per-thread ancestry: a re-entered capture
+        # resolves the current global parent (the cell executing at
+        # re-entry) — transient by design, never pinned past the block.
+        assert kernel.stream_parent('A second') == 's1-cell-c'
 
 
 @pytest.fixture(scope='module')
@@ -272,13 +278,6 @@ threading.Thread(target=late_worker, daemon=True).start()
     return kernel
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="ipywidgets#4021: __exit__ never restores the parent that "
-           "__enter__ pinned with ip.set_parent(), so output printed after "
-           "the with block is still attributed to the captured (foreign) "
-           "cell on both ipykernel 6 and 7",
-)
 def test_parent_override_does_not_outlive_the_block(pin_scenario):
     kernel = pin_scenario
     # "late print" happens outside any context block, after the foreign cell
@@ -292,14 +291,6 @@ def test_parent_override_does_not_outlive_the_block(pin_scenario):
     )
 
 
-@pytest.mark.xfail(
-    condition=IPYKERNEL_MAJOR >= 7,
-    strict=True,
-    reason="ipywidgets#4021: on ipykernel >= 7 the foreign cell's parent "
-           "grabbed at __enter__ is pinned to the thread's ContextVar, so "
-           "every later capture re-reads the long-finished foreign cell "
-           "instead of moving on",
-)
 def test_foreign_cell_parent_is_not_pinned_across_blocks(pin_scenario):
     kernel = pin_scenario
     comm_id = kernel.output_comm_id('s2-setup')

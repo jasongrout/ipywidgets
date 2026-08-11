@@ -9,10 +9,11 @@ the kernel parent) and pin it on the calling thread via ``ip.set_parent()``
 so that stream output produced in background threads is attributed to the
 captured cell.
 
-These tests document problems with that change.  Each test asserts the
-*correct* behavior and is marked ``xfail(strict=True)`` where current main
-gets it wrong, so the suite stays green while the bugs are open and fails
-loudly (XPASS) once a fix lands, prompting removal of the marker.
+That approach had several problems, fixed in this PR by resolving the
+calling thread's *effective* stream parent and pinning it thread-scoped
+with ContextVar tokens that ``__exit__`` resets, never touching the shell's
+``set_parent`` (see widget_output.py).  Each test here asserts the correct
+behavior; before the fix they failed as noted in the individual docstrings.
 
 The threading tests emulate ipykernel's parent bookkeeping (verified against
 ipykernel 6.29.5 sources and empirically against 7.3.0):
@@ -29,12 +30,12 @@ That global write is the crux: ``set_parent`` called from a worker thread is
 visible to every thread that has not pinned its own parent.
 """
 
+import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+from contextvars import ContextVar
 from types import SimpleNamespace
-
-import pytest
 
 from ipywidgets import widget_output
 
@@ -128,17 +129,11 @@ def _capture_once(widget):
 
 
 # ---------------------------------------------------------------------------
-# Point 1: ip.set_parent() from a background thread rewrites the
-# process-global parent fallback, so output from *unrelated* threads is
-# attributed to the captured cell.
+# Point 1: capturing from a background thread must not rewrite the
+# process-global parent fallback that *unrelated* threads resolve against.
+# (Regression: ip.set_parent() from the capturing thread did exactly that.)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="ipywidgets#4021: Output.__enter__ calls ip.set_parent() from the "
-           "capturing thread; ipykernel's set_parent also rewrites the "
-           "process-global fallback, misattributing other threads' output",
-)
 def test_capture_does_not_clobber_other_threads_parent():
     shell = FakeInteractiveShell()
     cell2, cell3 = request('cell2'), request('cell3')
@@ -153,8 +148,8 @@ def test_capture_does_not_clobber_other_threads_parent():
         # Cell 3 is dispatched on the shell thread.
         shell.execute_request(cell3)
 
-        # Thread A keeps looping; its own pinned context still holds cell 2,
-        # and re-entering rewrites the global fallback back to cell 2.
+        # Thread A keeps looping.  (The regression: re-entering rewrote the
+        # global fallback back to cell 2 via ip.set_parent.)
         thread_a.submit(_capture_once, widget).result()
 
         # Thread B is unrelated to the widget and never pinned a parent, so
@@ -167,16 +162,10 @@ def test_capture_does_not_clobber_other_threads_parent():
 
 
 # ---------------------------------------------------------------------------
-# Point 2: __exit__ never restores the parent that __enter__ overrode, so the
-# override leaks past the `with` block.
+# Point 2: __exit__ must restore whatever __enter__ overrode; the override
+# must not leak past the `with` block.
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="ipywidgets#4021: __exit__ only decrements the counter and clears "
-           "msg_id; the ip.set_parent() override from __enter__ is never "
-           "undone, so it outlives the with block",
-)
 def test_parent_override_does_not_outlive_the_block():
     shell = FakeInteractiveShell()
     cell2, cell3 = request('cell2'), request('cell3')
@@ -191,10 +180,9 @@ def test_parent_override_does_not_outlive_the_block():
         # Cell 3 runs later.
         shell.execute_request(cell3)
 
-        # A print() in thread A *after* the with block should behave as it
-        # did before the block: the thread never pinned a parent itself, so
-        # attribution follows the most recent cell.  Instead the pin from
-        # __enter__ is still in place.
+        # A print() in thread A *after* the with block must behave as it did
+        # before the block: the thread never pinned a parent itself, so
+        # attribution follows the most recent cell.
         observed = thread_a.submit(shell.resolve_output_parent).result()
         assert observed == cell3, (
             "the parent pinned inside the with block leaked past __exit__: "
@@ -203,16 +191,10 @@ def test_parent_override_does_not_outlive_the_block():
 
 
 # ---------------------------------------------------------------------------
-# Point 3: a parent grabbed from a different, currently-executing cell gets
-# pinned to the thread instead of staying transient.
+# Point 3: a parent grabbed from a different, currently-executing cell must
+# stay transient — it must not be pinned to the thread across blocks.
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="ipywidgets#4021: a foreign cell's parent captured at __enter__ is "
-           "pinned to the thread by ip.set_parent(), so the misattribution "
-           "outlives the foreign cell instead of correcting itself",
-)
 def test_foreign_cell_parent_is_not_pinned_across_blocks():
     shell = FakeInteractiveShell()
     cell3, cell4 = request('cell3'), request('cell4')
@@ -226,9 +208,9 @@ def test_foreign_cell_parent_is_not_pinned_across_blocks():
         shell.execute_request(cell3)
         assert ticker.submit(_capture_once, widget).result() == 'cell3'
 
-        # Cell 4 runs later.  Before #4021 the grab was transient: the next
-        # tick follows the newest cell.  With the set_parent pin, the ticker
-        # re-reads cell 3 from its own context forever.
+        # Cell 4 runs later.  The grab must be transient: the next tick
+        # follows the newest cell.  (The regression: the set_parent pin made
+        # the ticker re-read cell 3 from its own context forever.)
         shell.execute_request(cell4)
         observed = ticker.submit(_capture_once, widget).result()
         assert observed == 'cell4', (
@@ -239,9 +221,9 @@ def test_foreign_cell_parent_is_not_pinned_across_blocks():
 
 # ---------------------------------------------------------------------------
 # Point 4: a truthy, header-*shaped* shell parent (a header dict, not a full
-# request — exactly what ipykernel display publishers store) is committed
-# before the `.get("header")` shape check, which (a) blocks the working
-# kernel fallback and (b) unbalances the enter/exit counter.
+# request — exactly what ipykernel display publishers store) must not shadow
+# the working kernel fallback, and a block that captured nothing must not
+# unbalance the enter/exit counter.
 # ---------------------------------------------------------------------------
 
 HEADER_ONLY = {'msg_id': 'cell-1', 'msg_type': 'execute_request'}
@@ -262,12 +244,6 @@ def _shell_with_static_parents(shell_parent, kernel_parent):
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="ipywidgets#4021: a truthy shell parent is committed before the "
-           "'header' shape check, so a header-shaped parent blocks the "
-           "working kernel fallback and capture is silently disabled",
-)
 def test_header_shaped_shell_parent_does_not_block_kernel_fallback():
     shell = _shell_with_static_parents(HEADER_ONLY, FULL_REQUEST)
 
@@ -281,12 +257,6 @@ def test_header_shaped_shell_parent_does_not_block_kernel_fallback():
         assert observed == 'cell-1', "capture was silently disabled"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="ipywidgets#4021: __exit__ decrements unconditionally even when "
-           "__enter__ did not increment; the counter goes negative and "
-           "msg_id is never cleared again",
-)
 def test_counter_stays_balanced_when_enter_does_not_capture():
     # No usable parent anywhere: the shell parent is header-shaped (truthy,
     # fails the "header" check) and the kernel has none.
@@ -295,29 +265,26 @@ def test_counter_stays_balanced_when_enter_does_not_capture():
     with _patched_shell(shell):
         widget = widget_output.Output()
 
-        # Capture is (silently) disabled for this block, so __enter__ never
-        # increments the counter — but __exit__ still decrements it.
+        # Capture is disabled for this block, so __enter__ never increments
+        # the counter — __exit__ must not decrement either.
         with widget:
             first = widget.msg_id
         assert first == ''
 
-        # The shell recovers and returns a full request.
+        # The shell recovers and returns a full request; the counter must
+        # balance so the msg_id cleanup fires after the block.
         shell.get_parent = lambda: FULL_REQUEST
         with widget:
             second = widget.msg_id
         assert second == 'cell-1'
-        # On main the counter went 0 -> -1 -> 0 -> -1, so the
-        # `if self.__counter == 0` cleanup never fires again and msg_id is
-        # stuck at 'cell-1' forever: every cell-1-parented message keeps
-        # being captured by the widget.
         assert widget.msg_id == '', "msg_id must be cleared after the block"
 
 
 # ---------------------------------------------------------------------------
-# Point 5: the kernel-fallback branch of __enter__ was untested — the new
-# test added by #4021 mocks kernel.get_parent but its shell get_parent always
-# returns a truthy parent, so the fallback is never entered.  This test
-# passes on main; it adds the missing coverage (no xfail).
+# Point 5: the kernel-fallback branch of __enter__ (no active shell parent).
+# Capture must work from the kernel's parent request alone, and the widget
+# must never call the shell-wide ip.set_parent — that mutation (which also
+# rewrites ipykernel's process-global fallbacks) caused points 1-3.
 # ---------------------------------------------------------------------------
 
 def test_capture_works_without_shell_parent_api():
@@ -328,8 +295,8 @@ def test_capture_works_without_shell_parent_api():
     ``InteractiveShell`` subclass with **no** ``get_parent``/``set_parent``,
     and ``shell.kernel`` exposes ``get_parent()`` returning a full parent
     request.  Capture must work via the kernel fallback alone and must not
-    require any parent-mutation API.  Passes on current main; guards any
-    future fix against regressing non-ipykernel kernels.
+    require any parent-mutation API, so the thread-aware parent handling
+    cannot regress non-ipykernel kernels.
     """
     kernel_parent = {'header': {'msg_id': 'xeus-cell-1'}}
 
@@ -347,7 +314,7 @@ def test_capture_works_without_shell_parent_api():
         assert widget.msg_id == ''
 
 
-def test_set_parent_falls_back_to_kernel_parent():
+def test_falls_back_to_kernel_parent_without_set_parent():
     kernel_parent = {'header': {'msg_id': 'kernel-msg-id'}}
     parent_calls = []
 
@@ -365,5 +332,71 @@ def test_set_parent_falls_back_to_kernel_parent():
         assert observed == 'kernel-msg-id'
         assert widget.msg_id == ''
 
-    # set_parent received the kernel's parent request.
-    assert parent_calls == [kernel_parent]
+    # The shell-wide set_parent must never be called.
+    assert parent_calls == []
+
+
+# ---------------------------------------------------------------------------
+# The fix's pinning mechanics: the widget pins the calling thread's stream
+# parent via the ContextVar ipykernel exposes on OutStream, and resets it
+# with the saved token on exit — thread-scoped and exactly reversible.
+# ---------------------------------------------------------------------------
+
+class FakeOutStream:
+    """Duck-types the parent handling of ipykernel's OutStream."""
+
+    def __init__(self):
+        self._parent_header = ContextVar('parent_header')
+
+    @property
+    def parent_header(self):
+        try:
+            return self._parent_header.get()
+        except LookupError:
+            return {}
+
+    def flush(self):
+        pass
+
+
+@contextmanager
+def _patched_stdout(stream):
+    original = sys.stdout
+    sys.stdout = stream
+    try:
+        yield
+    finally:
+        sys.stdout = original
+
+
+def test_pins_and_restores_thread_stream_parent():
+    stream = FakeOutStream()
+    shell = _shell_with_static_parents(FULL_REQUEST, None)
+
+    with _patched_shell(shell), _patched_stdout(stream):
+        widget = widget_output.Output()
+        with widget:
+            # Inside the block the stream's per-thread parent is pinned to
+            # the captured header, so this thread's output carries the same
+            # parent msg_id the frontend hook matches on.
+            assert stream.parent_header == FULL_REQUEST['header']
+            assert widget.msg_id == 'cell-1'
+        # On exit the pin is reverted exactly (ContextVar token reset):
+        # the thread is back to its pre-block state, not overwritten with
+        # some other value.
+        assert stream.parent_header == {}
+
+
+def test_prefers_thread_stream_parent_over_shell_parent():
+    # The stream's per-thread parent (e.g. ipykernel 6's thread-ancestry
+    # attribution) is what the thread's output actually carries, so it wins
+    # over the shell's (potentially process-global, newest-cell) parent.
+    stream = FakeOutStream()
+    stream._parent_header.set({'msg_id': 'thread-own-cell'})
+    shell = _shell_with_static_parents({'header': {'msg_id': 'newest-cell'}}, None)
+
+    with _patched_shell(shell), _patched_stdout(stream):
+        widget = widget_output.Output()
+        with widget:
+            assert widget.msg_id == 'thread-own-cell'
+        assert widget.msg_id == ''
