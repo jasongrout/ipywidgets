@@ -139,13 +139,10 @@ class Output(DOMWidget):
             # kernel fallback below.
             if isinstance(shell_parent, dict) and shell_parent.get("header"):
                 parent_request = shell_parent
-        if parent_request is None:
-            if hasattr(kernel, "get_parent"):
-                # ipykernel >= 6 keeps parent requests on the kernel.
-                parent_request = kernel.get_parent()
-            elif hasattr(kernel, "_parent_header"):
-                # ipykernel < 6: kernel._parent_header is the parent *request*
-                parent_request = kernel._parent_header
+        if parent_request is None and hasattr(kernel, "get_parent"):
+            # ipykernel >= 6 and xeus-python keep parent requests on the
+            # kernel.
+            parent_request = kernel.get_parent()
 
         if isinstance(parent_request, dict):
             header = parent_request.get("header")

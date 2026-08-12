@@ -26,7 +26,7 @@ class TestOutputWidget(TestCase):
         kernel = type(
             'mock_kernel',
             (object, ),
-            {'_parent_header': {'header': {'msg_id': msg_id}}}
+            {'get_parent': staticmethod(lambda: {'header': {'msg_id': msg_id}})}
         )
 
         # Specifically override this so the traceback
