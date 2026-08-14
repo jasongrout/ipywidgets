@@ -25,7 +25,11 @@ post_develop = npm_builder(
     build_cmd="yarn", source_dir="src", build_dir=JS_DIR
 )
 
-cmdclass = wrap_installers(post_develop=post_develop)
+cmdclass = wrap_installers(
+    post_develop=post_develop,
+    # Never produce dists that are missing the built nbextension.
+    ensured_targets=['widgetsnbextension/static/extension.js'],
+)
 
 if __name__ == '__main__':
     setup(
