@@ -16,6 +16,6 @@ jobs:
         with:
           github-token: ${{ github.token }}
           issue-inactive-days: '90'
-          include-any-issue-labels: 'resolved-locked'
+          add-issue-labels: 'resolved-locked'
           pr-inactive-days: '90'
-          include-any-pr-labels: 'resolved-locked'
+          add-pr-labels: 'resolved-locked'
