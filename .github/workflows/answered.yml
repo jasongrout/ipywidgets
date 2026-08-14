@@ -22,4 +22,5 @@ jobs:
           days-before-issue-close: 7
           stale-issue-label: 'closing as answered'
           stale-issue-message: ''
+          close-issue-reason: 'completed'
           only-issue-labels: 'answered'
