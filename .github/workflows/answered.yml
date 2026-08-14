@@ -14,13 +14,14 @@ jobs:
   stale:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/stale@v3
+      - uses: actions/stale@v11
         with:
           days-before-pr-stale: -1
           days-before-pr-close: -1
-          skip-stale-issue-message: true
           days-before-issue-stale: 30
           days-before-issue-close: 7
           stale-issue-label: 'closing as answered'
-          stale-issue-message: '.'
+          stale-issue-message:
+            'This issue has been labeled as answered and will be closed in 7
+            days if there is no further activity.'
           only-issue-labels: 'answered'
