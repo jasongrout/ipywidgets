@@ -1,7 +1,61 @@
 [build-system]
 # These are the assumed default build requirements from pip:
 # https://pip.pypa.io/en/stable/reference/pip/#pep-517-and-518-support
-requires = ["jupyter_packaging~=0.10,<2"]
+# setuptools>=62 is needed to read the PEP 621 [project] metadata below.
+requires = ["jupyter_packaging~=0.10,<2", "setuptools>=62"]
+
+[project]
+name = "widgetsnbextension"
+dynamic = ["version"]
+authors = [
+  { name = "Jupyter Development Team", email = "jupyter@googlegroups.com" },
+]
+license = { text = "BSD 3-Clause License" }
+description = "Jupyter interactive widgets for Jupyter Notebook"
+readme = "README.md"
+keywords = [
+  "Interactive",
+  "Interpreter",
+  "Shell",
+  "Web",
+  "notebook",
+  "widgets",
+  "Jupyter",
+]
+classifiers = [
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3 :: Only",
+  "Framework :: Jupyter",
+]
+requires-python = ">=3.10"
+
+[project.urls]
+Homepage = "http://jupyter.org"
+
+[tool.setuptools]
+zip-safe = false
+include-package-data = true
+platforms = ["Linux", "Mac OS X", "Windows"]
+license-files = ["LICENSE"]
+
+[tool.setuptools.dynamic]
+version = { attr = "widgetsnbextension._version.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["widgetsnbextension*"]
+
+[tool.setuptools.package-data]
+widgetsnbextension = ["widgetsnbextension/static/extension.js"]
 
 [tool.jupyter-packaging.options]
 skip-if-exists = ["widgetnbextension/static/extension.js"]
