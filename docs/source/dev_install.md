@@ -104,11 +104,11 @@ pre-commit run --all-files
 
 The prettier and eslint hooks call the `prettier:files` and `eslint:files`
 scripts in the root `package.json`, so they use the versions in your
-`node_modules` and need `yarn` (or `jlpm`) to have been run first — there is no
-second set of versions to keep in sync.
+`node_modules` and need `jlpm` to have been run first — there is no second set
+of versions to keep in sync.
 
-The hooks are optional. `yarn lint` formats and lints the whole repository
-instead, and `yarn lint:check` is what CI runs.
+The hooks are optional; `jlpm lint` formats and lints the whole repository
+instead. CI runs both `jlpm lint:check` and `pre-commit run --all-files`.
 
 ## Updating widget model specification
 
