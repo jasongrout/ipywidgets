@@ -28,7 +28,7 @@ class CaseWidget(Widget):
 
 class TestEmbed:
 
-    def teardown(self):
+    def teardown_method(self):
         for w in tuple(widget_module._instances.values()):
             w.close()
 

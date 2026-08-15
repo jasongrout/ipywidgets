@@ -104,7 +104,7 @@ jobs:
           pip install -e ./python/ipywidgets[test]
       - name: Test with pytest
         run: |
-          pip install "pytest<8"
+          pip install pytest
           cd python/ipywidgets
           pytest --cov=ipywidgets ipywidgets
 
