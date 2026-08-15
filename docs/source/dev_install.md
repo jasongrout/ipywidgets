@@ -107,8 +107,11 @@ scripts in the root `package.json`, so they use the versions in your
 `node_modules` and need `jlpm` to have been run first — there is no second set
 of versions to keep in sync.
 
-The hooks are optional; `jlpm lint` formats and lints the whole repository
-instead. CI runs both `jlpm lint:check` and `pre-commit run --all-files`.
+CI enforces formatting by running these same hooks, with
+`pre-commit run --all-files`, so a clean commit locally is a clean lint job.
+The hooks are optional, though: `jlpm lint` formats and lints the whole
+repository in one go, and `jlpm lint:check` reports without changing
+anything.
 
 ## Updating widget model specification
 
