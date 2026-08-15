@@ -94,9 +94,9 @@ pip install pre-commit
 pre-commit install
 ```
 
-`git commit` will then run prettier and eslint over the files you staged, and
-flag things like malformed JSON, YAML, or TOML. To check the whole repository,
-run:
+`git commit` will then run prettier and eslint over the files you staged, check
+that each package's dependencies still match its imports, and flag things like
+malformed JSON, YAML, or TOML. To check the whole repository, run:
 
 ```
 pre-commit run --all-files

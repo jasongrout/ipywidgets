@@ -46,3 +46,14 @@ repos:
         args: [run, 'eslint:files']
         language: system
         types_or: [ts, tsx]
+
+      # Checks every package at once rather than the staged files, so it takes
+      # no filenames -- but there is no point running it unless a package.json
+      # or some TypeScript changed.
+      - id: integrity
+        name: package integrity
+        entry: jlpm
+        args: [run, integrity]
+        language: system
+        pass_filenames: false
+        files: (^|/)package\.json$|\.tsx?$
