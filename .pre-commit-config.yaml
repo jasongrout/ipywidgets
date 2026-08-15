@@ -23,14 +23,17 @@ repos:
 
   # These shell out to the package.json scripts rather than pinning their own
   # copies of prettier and eslint, so there is one set of versions to keep up
-  # to date and the hooks always agree with `yarn lint:check`. They need
-  # `yarn install` to have been run; `yarn lint` does the same thing if you
+  # to date and the hooks always agree with `jlpm lint:check`. They need
+  # `jlpm install` to have been run; `jlpm lint` does the same thing if you
   # would rather not install the hooks.
+  #
+  # jlpm rather than yarn: it is the yarn 3 that ships with JupyterLab, which
+  # is what CI uses, and the repo's `engines` field rejects yarn 1.
   - repo: local
     hooks:
       - id: prettier
         name: prettier
-        entry: yarn
+        entry: jlpm
         args: [run, 'prettier:files']
         language: system
         types_or: [ts, tsx, javascript, jsx, css, json, yaml, markdown]
@@ -39,7 +42,7 @@ repos:
 
       - id: eslint
         name: eslint
-        entry: yarn
+        entry: jlpm
         args: [run, 'eslint:files']
         language: system
         types_or: [ts, tsx]
