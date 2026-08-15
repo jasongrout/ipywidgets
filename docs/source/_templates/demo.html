@@ -26,7 +26,6 @@
     </label>
     <a
       href="{{ pathto('try/lab/index') }}?path=Widget%20List.ipynb"
-      class="btn btn-primary"
       target="_blank"
       title="Try Jupyter Widgets in your browser."
       id="demo-button"
@@ -37,9 +36,19 @@
   </div>
 
 
-  <script>$(function() {
-    $('.demo-app input').on('change', (event) => {
-      $("#demo-button").attr("href", (event.currentTarget.value));
-    });
-  });</script>
+  <script>
+    (function() {
+      const button = document.getElementById("demo-button");
+      const inputs = document.querySelectorAll(".demo-app input[name='demo-app']");
+      const sync = () => {
+        const checked = document.querySelector(".demo-app input[name='demo-app']:checked");
+        if (checked) {
+          button.href = checked.value;
+        }
+      };
+      inputs.forEach((input) => input.addEventListener("change", sync));
+      // Browsers may restore a previous selection when navigating back.
+      sync();
+    })();
+  </script>
 </div>
