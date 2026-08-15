@@ -1,0 +1,38 @@
+# Git hooks, managed by pre-commit (https://pre-commit.com).
+#
+# Install them once with:
+#
+#     pip install pre-commit
+#     pre-commit install
+#
+# After that, `git commit` formats the files you staged. To check everything
+# at once (as CI does), run `pre-commit run --all-files`.
+
+ci:
+  autoupdate_schedule: monthly
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-json
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  # Keep this pinned to the same major version as the `prettier` devDependency
+  # in package.json, so the hook and `jlpm prettier:check` agree.
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: prettier --write
+        language: node
+        additional_dependencies: ['prettier@2.8.8']
+        types_or: [ts, tsx, javascript, jsx, css, json, yaml, markdown]
+        # Notebooks are JSON, but prettier has no parser for them.
+        exclude: \.ipynb$
