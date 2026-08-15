@@ -16,7 +16,6 @@
     "state": {
       "description": "Model State for All Widget Models",
       "type": "object",
-      "additionalProperties": true,
       "additionalProperties": {
         "type": "object",
         "properties": {

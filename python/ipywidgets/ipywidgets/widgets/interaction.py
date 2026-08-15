@@ -307,7 +307,7 @@ class interactive(VBox):
                     # ignore failure to set default
                     pass
             return widget
-        
+
         # Try type annotation
         if isinstance(abbrev, type):
             widget = cls.widget_from_annotation(abbrev)

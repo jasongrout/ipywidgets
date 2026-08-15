@@ -41,10 +41,10 @@ except ImportError:
     except ImportError:
         # IPython < 3
         from IPython.nbformat import current
-    
+
         def read(f, as_version):
             return current.read(f, 'json')
-    
+
         def write(nb, f):
             return current.write(nb, f, 'json')
 
