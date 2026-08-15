@@ -12,8 +12,7 @@ table.indextable tr.cap {
   margin: 0.75rem 0.25rem 0 0.25rem;
 }
 
-/* Strip the fieldset's default chrome; it is here for radio-group semantics,
- * not as a visual box. */
+/* Strip the fieldset's default chrome */
 .demo-app > .demo-app-picker {
   border: 0;
   margin: 0;
