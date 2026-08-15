@@ -5,11 +5,8 @@
 #     pip install pre-commit
 #     pre-commit install
 #
-# After that, `git commit` formats the files you staged. To check everything
-# at once (as CI does), run `pre-commit run --all-files`.
-
-ci:
-  autoupdate_schedule: monthly
+# After that, `git commit` formats and lints the files you staged. To check
+# everything at once, run `pre-commit run --all-files`.
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -24,15 +21,25 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
 
-  # Keep this pinned to the same major version as the `prettier` devDependency
-  # in package.json, so the hook and `jlpm prettier:check` agree.
+  # These shell out to the package.json scripts rather than pinning their own
+  # copies of prettier and eslint, so there is one set of versions to keep up
+  # to date and the hooks always agree with `yarn lint:check`. They need
+  # `yarn install` to have been run; `yarn lint` does the same thing if you
+  # would rather not install the hooks.
   - repo: local
     hooks:
       - id: prettier
         name: prettier
-        entry: prettier --write
-        language: node
-        additional_dependencies: ['prettier@2.8.8']
+        entry: yarn
+        args: [run, 'prettier:files']
+        language: system
         types_or: [ts, tsx, javascript, jsx, css, json, yaml, markdown]
         # Notebooks are JSON, but prettier has no parser for them.
         exclude: \.ipynb$
+
+      - id: eslint
+        name: eslint
+        entry: yarn
+        args: [run, 'eslint:files']
+        language: system
+        types_or: [ts, tsx]

@@ -94,16 +94,21 @@ pip install pre-commit
 pre-commit install
 ```
 
-`git commit` will then format the files you staged (prettier), and flag things
-like malformed JSON, YAML, or TOML. To check the whole repository the way CI
-does, run:
+`git commit` will then run prettier and eslint over the files you staged, and
+flag things like malformed JSON, YAML, or TOML. To check the whole repository,
+run:
 
 ```
 pre-commit run --all-files
 ```
 
-The hooks are optional; running `jlpm lint` before pushing does the same
-formatting, plus eslint, which the hooks do not run.
+The prettier and eslint hooks call the `prettier:files` and `eslint:files`
+scripts in the root `package.json`, so they use the versions in your
+`node_modules` and need `yarn` (or `jlpm`) to have been run first — there is no
+second set of versions to keep in sync.
+
+The hooks are optional. `yarn lint` formats and lints the whole repository
+instead, and `yarn lint:check` is what CI runs.
 
 ## Updating widget model specification
 
