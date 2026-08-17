@@ -100,7 +100,7 @@ curl -s https://pypi.org/pypi/widgetsnbextension/json | jq  -r '[.releases[][] |
 
 ## `ipywidgets`
 
-Go into the `python/ipywidgets` directory. Change `ipywidgets/_version.py` to reflect the new version number, and if necessary, a new `__html_manager_version__`. Change the `install_requires` parameter in `setup.cfg` reference the new widgetsnbextension and jupyterlab_widgets version.
+Go into the `python/ipywidgets` directory. Change `ipywidgets/_version.py` to reflect the new version number, and if necessary, a new `__html_manager_version__`. Change the `dependencies` entries in `pyproject.toml` to reference the new widgetsnbextension and jupyterlab_widgets versions.
 
 ```
 (cd python/ipywidgets && pyproject-build . && twine upload dist/*)

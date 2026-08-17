@@ -57,3 +57,6 @@ include = ["widgetsnbextension*"]
 [tool.setuptools.package-data]
 # Paths are relative to the package directory, so this must not repeat it.
 widgetsnbextension = ["static/extension.js"]
+
+[tool.check-manifest]
+ignore = ["widgetsnbextension/static/**", "yarn.lock", ".*", "package-lock.json"]
