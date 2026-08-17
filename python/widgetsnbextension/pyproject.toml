@@ -55,4 +55,5 @@ version = { attr = "widgetsnbextension._version.__version__" }
 include = ["widgetsnbextension*"]
 
 [tool.setuptools.package-data]
-widgetsnbextension = ["widgetsnbextension/static/extension.js"]
+# Paths are relative to the package directory, so this must not repeat it.
+widgetsnbextension = ["static/extension.js"]
