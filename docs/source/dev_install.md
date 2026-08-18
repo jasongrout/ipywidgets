@@ -87,7 +87,7 @@ If your changes are confined to one package (for example, just in the widgetsnbe
 
 Formatting is checked in CI and is also available as git hooks, managed by
 [pre-commit](https://pre-commit.com). To install the hooks, run this once in
-your clone:
+your clone after running `jlpm`:
 
 ```
 pip install pre-commit
@@ -102,17 +102,7 @@ malformed JSON, YAML, or TOML. To check the whole repository, run:
 pre-commit run --all-files
 ```
 
-The prettier and eslint hooks call the `prettier:files` and `eslint:files`
-scripts in the root `package.json`, so they use the versions in your
-`node_modules` and need `jlpm` to have been run first — there is no second set
-of versions to keep in sync.
-
-CI enforces formatting by running these same hooks, with
-`pre-commit run --all-files`, so a clean commit locally is a clean lint job.
-The hooks are optional. `jlpm lint` (and its non-mutating variant
-`jlpm lint:check`) runs prettier and eslint without needing pre-commit, and
-covers untracked files, which pre-commit skips -- but not the other checks.
-`pre-commit run --all-files` is the full CI check.
+To run some of the lint checks without using pre-commit, use `jlpm lint` (to fix errors) or `jlpm lint:check` (to flag errors).
 
 ## Updating widget model specification
 

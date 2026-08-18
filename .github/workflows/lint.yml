@@ -37,9 +37,6 @@ jobs:
         run: |
           jlpm --immutable
 
-      # Everything is enforced through the hooks: prettier, eslint and the
-      # integrity check all call the package.json scripts, so this is the same
-      # thing that runs on `git commit` (and it needs the yarn install above).
       - name: pre-commit
         run: |
           pre-commit run --all-files --show-diff-on-failure
