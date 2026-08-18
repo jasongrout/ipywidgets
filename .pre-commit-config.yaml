@@ -1,0 +1,53 @@
+# Git hooks, managed by pre-commit (https://pre-commit.com):
+#
+#     pip install pre-commit
+#     pre-commit install
+#
+# `pre-commit run --all-files` checks the whole repo.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-json
+      - id: check-toml
+      - id: check-yaml
+      # draw.io exports have no final newline
+      - id: end-of-file-fixer
+        exclude: \.svg$
+      - id: trailing-whitespace
+
+  # prettier and eslint go through the package.json scripts so their versions
+  # stay pinned in one place. Requires `jlpm install`; `jlpm lint` is the
+  # equivalent for anyone not using the hooks.
+  #
+  # jlpm, not yarn: `engines` rejects the yarn 1 usually first on PATH.
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: jlpm
+        args: [run, 'prettier:files']
+        language: system
+        types_or: [ts, tsx, javascript, jsx, css, json, yaml, markdown]
+        # prettier has no .ipynb parser
+        exclude: \.ipynb$
+
+      - id: eslint
+        name: eslint
+        entry: jlpm
+        args: [run, 'eslint:files']
+        language: system
+        types_or: [ts, tsx]
+
+      # Validates all packages at once, so it takes no filenames.
+      - id: integrity
+        name: package integrity
+        entry: jlpm
+        args: [run, integrity]
+        language: system
+        pass_filenames: false
+        files: (^|/)package\.json$|\.tsx?$
