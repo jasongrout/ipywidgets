@@ -107,6 +107,13 @@ scripts in the root `package.json`, so they use the versions in your
 `node_modules` and need `jlpm` to have been run first — there is no second set
 of versions to keep in sync.
 
+CI enforces formatting by running these same hooks, with
+`pre-commit run --all-files`, so a clean commit locally is a clean lint job.
+The hooks are optional. `jlpm lint` (and its non-mutating variant
+`jlpm lint:check`) runs prettier and eslint without needing pre-commit, and
+covers untracked files, which pre-commit skips -- but not the other checks.
+`pre-commit run --all-files` is the full CI check.
+
 ## Updating widget model specification
 
 To update the widget model specification with changes, do something like this in the repo root:
