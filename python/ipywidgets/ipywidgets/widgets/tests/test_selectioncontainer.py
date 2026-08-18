@@ -165,4 +165,3 @@ class TestStack(TestCase):
         widget.children = tuple(widget.children[:1])
         assert len(widget.children) == 1
         assert widget.titles == ('',)
-

@@ -230,7 +230,7 @@ def create_markdown(spec):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Description of your program')
-    parser.add_argument('-f', '--format', choices=['json', 'json-pretty', 'markdown'], 
+    parser.add_argument('-f', '--format', choices=['json', 'json-pretty', 'markdown'],
         help='Format to generate', default='json')
     parser.add_argument('output', nargs='?', type=pathlib.Path)
     args = parser.parse_args()
