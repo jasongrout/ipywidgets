@@ -184,6 +184,70 @@ class TestOutputWidget(TestCase):
 
         assert len(clear_output.calls) == 0
 
+    def test_capture_output_pairs_out_of_order_exits(self):
+        # capture_output() vends an independent context manager per call, so
+        # each entry pairs with its own exit even when exits are out of LIFO
+        # order (as with interleaved async tasks) — a shared enter/exit
+        # stack would mispair these.
+        msg_id = 'msg-id'
+        get_ipython = self._mock_get_ipython(msg_id)
+        clear_output = self._mock_clear_output()
+
+        with self._mocked_ipython(get_ipython, clear_output):
+            widget = widget_output.Output()
+            cm_a = widget.capture_output()
+            cm_b = widget.capture_output()
+            cm_a.__enter__()
+            cm_b.__enter__()
+            cm_a.__exit__(None, None, None)
+            # b is still capturing, so msg_id must survive a's exit.
+            assert widget.msg_id == msg_id
+            cm_b.__exit__(None, None, None)
+            assert widget.msg_id == ''
+
+    def test_exception_shown_and_suppressed(self):
+        # An exception raised in the block is displayed via the kernel's
+        # showtraceback and suppressed, and capture state is still torn down.
+        msg_id = 'msg-id'
+        shown = []
+
+        kernel = type(
+            'mock_kernel',
+            (object, ),
+            {'get_parent': staticmethod(lambda: {'header': {'msg_id': msg_id}})}
+        )
+        ipython = type(
+            'mock_ipython',
+            (object, ),
+            {
+                'kernel': kernel,
+                'showtraceback': lambda self_, exc_tuple, *a, **kw: shown.append(exc_tuple),
+            }
+        )
+        clear_output = self._mock_clear_output()
+
+        with self._mocked_ipython(ipython, clear_output):
+            widget = widget_output.Output()
+            with widget:
+                raise ValueError('boom')
+            assert widget.msg_id == ''
+
+        assert len(shown) == 1
+        etype, evalue, tb = shown[0]
+        assert etype is ValueError
+        assert str(evalue) == 'boom'
+
+    def test_exception_propagates_without_kernel(self):
+        # With no shell and no comm kernel there is nowhere to display the
+        # exception, so it must propagate to the caller.
+        clear_output = self._mock_clear_output()
+
+        with self._mocked_ipython(lambda: None, clear_output):
+            widget = widget_output.Output()
+            with self.assertRaises(ValueError):
+                with widget:
+                    raise ValueError('boom')
+
 
 def _make_stream_output(text, name):
     return {

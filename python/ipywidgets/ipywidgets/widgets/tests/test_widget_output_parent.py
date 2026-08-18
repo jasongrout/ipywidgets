@@ -37,6 +37,8 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from types import SimpleNamespace
 
+import pytest
+
 from ipywidgets import widget_output
 
 
@@ -369,6 +371,8 @@ def _patched_stdout(stream):
         sys.stdout = original
 
 
+@pytest.mark.skip(reason="Re-enable (with the widget-side support) once "
+                         "ipython/ipykernel#1546 is merged")
 def test_prefers_public_thread_parent_api():
     """With ipykernel's public thread-scoped parent API (ipykernel#1546),
     the widget delegates pinning entirely: ``ip.set_thread_parent(parent)``

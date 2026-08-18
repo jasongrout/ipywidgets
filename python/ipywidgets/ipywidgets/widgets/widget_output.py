@@ -8,6 +8,7 @@ Represents a widget that can be used to display output within the widget area.
 
 import sys
 import threading
+from contextlib import contextmanager
 from contextvars import ContextVar
 from functools import wraps
 
@@ -21,6 +22,20 @@ from IPython.core.interactiveshell import InteractiveShell
 from IPython.display import clear_output
 from IPython import get_ipython
 import traceback
+
+
+class _CaptureRecords(threading.local):
+    """Per-thread stack of entered capture context managers.
+
+    Carries the context manager from ``Output.__enter__`` to the matching
+    ``Output.__exit__`` when the widget itself is used as a context
+    manager. ``threading.local`` subclasses run ``__init__`` once per
+    thread on that thread's first access, so every thread sees its own
+    freshly initialized stack.
+    """
+    def __init__(self):
+        self.stack = []
+
 
 @register
 class Output(DOMWidget):
@@ -69,7 +84,7 @@ class Output(DOMWidget):
         self.__counter_lock = threading.Lock()
         # Per-thread stack of capture records so nested/threaded enter/exit
         # pairs stay balanced and each thread restores exactly what it set.
-        self.__records = threading.local()
+        self.__records = _CaptureRecords()
 
     def clear_output(self, *pargs, **kwargs):
         """
@@ -82,7 +97,7 @@ class Output(DOMWidget):
             If True, wait to clear the output until new output is
             available to replace it. Default: False
         """
-        with self:
+        with self.capture_output():
             clear_output(*pargs, **kwargs)
 
     # PY3: Force passing clear_output and clear_kwargs as kwargs
@@ -108,14 +123,14 @@ class Output(DOMWidget):
             def inner(*args, **kwargs):
                 if clear_output:
                     self.clear_output(*clear_args, **clear_kwargs)
-                with self:
+                with self.capture_output():
                     return func(*args, **kwargs)
             return inner
         return capture_decorator
 
     @staticmethod
-    def _resolve_parent(ip, kernel):
-        """The parent to capture for the calling thread: (parent, header).
+    def _resolve_parent_header(ip, kernel):
+        """The parent header to capture for the calling thread, or None.
 
         Prefer the parent the calling thread's stream output will actually
         be attributed to: ``OutStream.parent_header`` resolves per-thread
@@ -123,13 +138,11 @@ class Output(DOMWidget):
         per-thread ContextVar with a process-global fallback on 7). Fall
         back to the shell's parent request, then the kernel's, for streams
         that do not expose a parent (non-ipykernel kernels, redirected
-        stdout). Returns the richest parent object available (a full
-        request when one exists, else a bare header) together with its
-        header, or (None, None).
+        stdout).
         """
         header = getattr(sys.stdout, "parent_header", None)
         if isinstance(header, dict) and header.get("msg_id"):
-            return header, header
+            return header
 
         parent_request = None
         if ip is not None and hasattr(ip, "get_parent"):
@@ -147,22 +160,25 @@ class Output(DOMWidget):
         if isinstance(parent_request, dict):
             header = parent_request.get("header")
             if isinstance(header, dict) and header.get("msg_id"):
-                return parent_request, header
-        return None, None
+                return header
+        return None
 
     @staticmethod
     def _thread_parent_vars(ip):
         """ContextVars holding the calling thread's output parent.
 
-        Fallback for ipykernel versions without the public
-        ``set_thread_parent`` API (ipython/ipykernel#1546): ``OutStream``
-        (>= 6.18) and ``ZMQDisplayPublisher`` (>= 7) keep the per-thread
-        parent in a ``_parent_header`` ContextVar. Setting it affects only
-        the current thread and is exactly reversible with the returned
-        token — unlike ``shell.set_parent``, which also rewrites
-        process-global state shared with every other thread. Objects
-        without such a ContextVar (other kernels such as xeus-python,
-        redirected streams) are skipped, leaving their behavior unchanged.
+        ipykernel's ``OutStream`` (>= 6.18) and ``ZMQDisplayPublisher``
+        (>= 7) keep the per-thread parent in a ``_parent_header``
+        ContextVar. Setting it affects only the current thread and is
+        exactly reversible with the returned token — unlike
+        ``shell.set_parent``, which also rewrites process-global state
+        shared with every other thread. Objects without such a ContextVar
+        (other kernels such as xeus-python, redirected streams) are
+        skipped, leaving their behavior unchanged.
+
+        Once ipython/ipykernel#1546 (a public thread-scoped
+        ``set_thread_parent``/``reset_thread_parent`` API) is merged,
+        prefer that API over touching these ContextVars directly.
         """
         candidates = [sys.stdout, sys.stderr]
         if ip is not None:
@@ -173,13 +189,42 @@ class Output(DOMWidget):
             if isinstance(var, ContextVar)
         ]
 
-    @staticmethod
-    def _reset_thread_parent_vars(pairs):
-        for var, token in reversed(pairs):
-            var.reset(token)
+    def _show_exception(self, etype, evalue, tb):
+        """Display an exception through the kernel, if one is available.
 
-    def __enter__(self):
-        """Called upon entering output widget context manager."""
+        Returns True if the exception was displayed (so the caller should
+        suppress it), False to let it propagate.
+        """
+        ip = get_ipython()
+        if ip:
+            ip.showtraceback((etype, evalue, tb), tb_offset=0)
+            return True
+        if (self.comm is not None and
+                getattr(self.comm, "kernel", None) is not None and
+                # Check if it's ipykernel
+                getattr(self.comm.kernel, "send_response", None) is not None):
+            kernel = self.comm.kernel
+            kernel.send_response(kernel.iopub_socket,
+                                 u'error',
+                                 {
+                u'traceback': ["".join(traceback.format_exception(etype, evalue, tb))],
+                u'evalue': repr(evalue.args),
+                u'ename': etype.__name__
+                })
+            return True
+        return False
+
+    @contextmanager
+    def capture_output(self):
+        """Return a fresh context manager that captures output into this widget.
+
+        Each call returns an independent context manager, so per-entry
+        state lives in its own frame: nested blocks, threads, and
+        interleaved async tasks each pair their own enter/exit without
+        shared bookkeeping. Using the widget itself as a context manager
+        (``with out:``) is equivalent, entering a context manager from
+        this method under the hood.
+        """
         self._flush()
         ip = get_ipython()
         kernel = None
@@ -188,73 +233,54 @@ class Output(DOMWidget):
         elif self.comm is not None and getattr(self.comm, 'kernel', None) is not None:
             kernel = self.comm.kernel
 
-        record = {'reset': None, 'tokens': None, 'captured': False}
+        tokens = ()
+        captured = False
         if kernel:
-            parent, header = self._resolve_parent(ip, kernel)
+            header = self._resolve_parent_header(ip, kernel)
             if header:
-                # Pin the calling thread's parents to the captured parent
-                # for the duration of the block, so output produced in this
-                # thread carries the same parent msg_id the frontend hook
-                # matches on.
-                if hasattr(ip, "set_thread_parent") and hasattr(ip, "reset_thread_parent"):
-                    # ipykernel with the public thread-scoped parent API
-                    # (ipython/ipykernel#1546): thread-only and exactly
-                    # reversible, covering streams, display and get_parent.
-                    record['tokens'] = ip.set_thread_parent(parent)
-                    record['reset'] = ip.reset_thread_parent
-                else:
-                    # Older ipykernel: pin the stream/display ContextVars
-                    # directly.
-                    record['tokens'] = tuple(
-                        (var, var.set(header)) for var in self._thread_parent_vars(ip)
-                    )
-                    record['reset'] = self._reset_thread_parent_vars
-                record['captured'] = True
+                # Pin the calling thread's stream/display parents to the
+                # captured parent for the duration of the block, so output
+                # produced in this thread carries the same parent msg_id the
+                # frontend hook matches on.
+                tokens = tuple(
+                    (var, var.set(header)) for var in self._thread_parent_vars(ip)
+                )
+                captured = True
                 with self.__counter_lock:
                     self.__counter += 1
                 self.msg_id = header['msg_id']
-        stack = getattr(self.__records, 'stack', None)
-        if stack is None:
-            stack = self.__records.stack = []
-        stack.append(record)
+        try:
+            yield
+        except BaseException:
+            # Show the exception in the kernel's usual way while the parent
+            # is still pinned, so it lands in this widget; suppress it only
+            # if it was shown, otherwise let someone else handle it.
+            if not self._show_exception(*sys.exc_info()):
+                raise
+        finally:
+            self._flush()
+            # Restore the thread's previous parents exactly; the override
+            # must not outlive the block.
+            for var, token in reversed(tokens):
+                var.reset(token)
+            if captured:
+                with self.__counter_lock:
+                    self.__counter -= 1
+                    if self.__counter == 0:
+                        self.msg_id = ''
+
+    def __enter__(self):
+        """Called upon entering output widget context manager."""
+        cm = self.capture_output()
+        cm.__enter__()
+        self.__records.stack.append(cm)
 
     def __exit__(self, etype, evalue, tb):
         """Called upon exiting output widget context manager."""
-        kernel = None
-        if etype is not None:
-            ip = get_ipython()
-            if ip:
-                kernel = ip
-                ip.showtraceback((etype, evalue, tb), tb_offset=0)
-            elif (self.comm is not None and
-                    getattr(self.comm, "kernel", None) is not None and
-                    # Check if it's ipykernel
-                    getattr(self.comm.kernel, "send_response", None) is not None):
-                kernel = self.comm.kernel
-                kernel.send_response(kernel.iopub_socket,
-                                     u'error',
-                                     {
-                    u'traceback': ["".join(traceback.format_exception(etype, evalue, tb))],
-                    u'evalue': repr(evalue.args),
-                    u'ename': etype.__name__
-                    })
-        self._flush()
-        stack = getattr(self.__records, 'stack', None)
-        record = stack.pop() if stack else {'reset': None, 'tokens': None, 'captured': False}
-        # Restore the thread's previous parents exactly; the override must
-        # not outlive the block.
-        if record['reset'] is not None:
-            record['reset'](record['tokens'])
-        if record['captured']:
-            # Only decrement when the matching __enter__ captured, so the
-            # counter stays balanced and msg_id cleanup always fires.
-            with self.__counter_lock:
-                self.__counter -= 1
-                if self.__counter == 0:
-                    self.msg_id = ''
-        # suppress exceptions when in IPython, since they are shown above,
-        # otherwise let someone else handle it
-        return True if kernel else None
+        stack = self.__records.stack
+        if not stack:
+            return None
+        return stack.pop().__exit__(etype, evalue, tb)
 
     def _flush(self):
         """Flush stdout and stderr buffers."""
