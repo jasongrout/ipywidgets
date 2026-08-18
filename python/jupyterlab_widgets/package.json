@@ -1,6 +1,6 @@
 {
   "name": "@jupyter-widgets/jupyterlab-manager",
-  "version": "5.0.15",
+  "version": "5.0.16",
   "description": "The JupyterLab extension providing Jupyter widgets.",
   "keywords": [
     "jupyter",
@@ -46,10 +46,10 @@
     "watch": "jupyter-builder watch ."
   },
   "dependencies": {
-    "@jupyter-widgets/base": "^6.0.11",
-    "@jupyter-widgets/base-manager": "^1.0.12",
-    "@jupyter-widgets/controls": "^5.0.12",
-    "@jupyter-widgets/output": "^6.0.11",
+    "@jupyter-widgets/base": "^6.0.12",
+    "@jupyter-widgets/base-manager": "^1.0.13",
+    "@jupyter-widgets/controls": "^5.0.13",
+    "@jupyter-widgets/output": "^6.0.12",
     "@jupyterlab/application": "^4.0.0",
     "@jupyterlab/apputils": "^4.0.0",
     "@jupyterlab/console": "^4.0.0",
