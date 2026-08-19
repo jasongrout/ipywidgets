@@ -13,7 +13,9 @@ export function createErrorWidgetModel(
   msg?: string
 ): typeof WidgetModel {
   class ErrorWidget extends DOMWidgetModel {
-    constructor(attributes: any, options: any) {
+    // options defaults to an empty object so that an ErrorWidget can be
+    // created without a widget manager, e.g. `new (createErrorWidgetModel(e))()`.
+    constructor(attributes: any, options: any = {}) {
       attributes = {
         ...attributes,
         _view_name: 'ErrorWidgetView',
