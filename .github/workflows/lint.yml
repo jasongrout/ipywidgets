@@ -21,12 +21,22 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Cache pre-commit environments
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/pre-commit
+          key: ${{ runner.os }}-pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pre-commit-
+
       - name: Install dependencies
         run: |
-          python -m pip install jupyterlab
+          python -m pip install jupyterlab pre-commit
 
-      - name: yarn install, integrity, lint
+      - name: yarn install
         run: |
           jlpm --immutable
-          jlpm integrity
-          jlpm lint:check
+
+      - name: pre-commit
+        run: |
+          pre-commit run --all-files --show-diff-on-failure

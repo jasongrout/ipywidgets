@@ -3,7 +3,7 @@
 
 set -x
 
-echo -n "Checking pip... "
+echo "Checking pip... "
 pip --version
 if [ $? -ne 0 ]; then
     echo "'pip --version' failed, therefore pip is not installed. In order to perform
@@ -12,7 +12,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo -n "Checking JupyterLab (assuming JupyterLab >=4)... "
+echo "Checking JupyterLab (assuming JupyterLab >=4)... "
 jupyter lab --version 2>/dev/null
 if [ $? -ne 0 ]; then
     echo "no, skipping installation of widgets for jupyterlab"
@@ -25,11 +25,11 @@ set -e
 
 nbExtFlags="--sys-prefix $1"
 
-echo -n "Installing and building all yarn packages"
+echo "Installing and building all yarn packages"
 jlpm
 jlpm build
 
-echo -n "widgetsnbextension"
+echo "widgetsnbextension"
 pip install -v -e ./python/widgetsnbextension
 if [[ "$OSTYPE" == "msys" ]]; then
     jupyter nbextension install --overwrite --py $nbExtFlags widgetsnbextension || true
@@ -41,12 +41,16 @@ fi
 jupyter nbextension enable --py $nbExtFlags widgetsnbextension || true
 jupyter nbclassic-extension enable --py $nbExtFlags widgetsnbextension || true
 
-echo -n "ipywidgets"
+echo "ipywidgets"
 pip install -v -e "./python/ipywidgets[test]"
 
 if test "$skip_jupyter_lab" != yes; then
-    echo -n "jupyterlab_ipywidgets"
+    echo "jupyterlab_ipywidgets"
     pip install jupyter_builder
     pip install -ve ./python/jupyterlab_widgets
     jupyter-builder develop ./python/jupyterlab_widgets --overwrite
 fi
+
+echo "pre-commit git hooks"
+pip install pre-commit
+pre-commit install

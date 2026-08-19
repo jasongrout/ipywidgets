@@ -504,7 +504,7 @@ class Widget(LoggingHasTraits):
 
         Widget._call_widget_constructed(self)
         self.open()
-    
+
     def __copy__(self):
         raise NotImplementedError("Widgets cannot be copied; custom implementation required")
 

@@ -33,5 +33,18 @@
     "@typescript-eslint/camelcase": "off"
   },
   "parser": "@typescript-eslint/parser",
-  "plugins": ["@typescript-eslint"]
+  "plugins": ["@typescript-eslint"],
+  "overrides": [
+    {
+      "files": [
+        "python/jupyterlab_widgets/**/*.ts",
+        "python/jupyterlab_widgets/**/*.tsx"
+      ],
+      "rules": {
+        "curly": ["error", "all"],
+        "eqeqeq": "error",
+        "prefer-arrow-callback": "error"
+      }
+    }
+  ]
 }

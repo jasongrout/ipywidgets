@@ -17,24 +17,20 @@
     "docs": "typedoc",
     "eslint": "eslint . --fix --ignore-path .gitignore --ext .ts,.tsx",
     "eslint:check": "eslint . --ignore-path .gitignore --ext .ts,.tsx",
+    "eslint:files": "eslint --fix",
     "integrity": "node scripts/package-integrity.js",
     "lint": "yarn && yarn prettier && yarn eslint",
     "lint:check": "yarn prettier:check && yarn eslint:check",
     "prettier": "yarn prettier:base --list-different --write",
     "prettier:base": "prettier --ignore-path .gitignore \"**/*{.ts,.tsx,.js,.jsx,.css,.json,.yml,.yaml,.md}\"",
     "prettier:check": "yarn prettier:base --check",
+    "prettier:files": "prettier --write",
     "publish": "yarn clean && yarn build && lerna publish --pre-dist-tag next from-git",
     "sort-package-json": "lerna exec --stream --parallel sort-package-json && sort-package-json",
     "update-dependency": "update-dependency --lerna",
     "updated": "lerna updated",
     "bump": "yarn clean && yarn build && lerna version --no-push -m \"Bump version\" ",
     "watch": "lerna run --stream watch"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged",
-      "pre-push": "yarn integrity"
-    }
   },
   "resolutions": {
     "typescript": "~6.0.3"
@@ -45,11 +41,8 @@
     "@typescript-eslint/parser": "^8.67.0",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^8.6.0",
-    "eslint-plugin-prettier": "^4.2.1",
     "glob": "^10.2.4",
-    "husky": "^7.0.4",
     "lerna": "^5.4.3",
-    "lint-staged": "^12.1.3",
     "prettier": "^2.8.3",
     "rimraf": "^5.0.1",
     "sort-package-json": "^2.1.0",

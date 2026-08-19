@@ -637,7 +637,7 @@ def test_state_schema():
 
 def test_type_hints():
     c = interactive(g)
-    
+
     assert len(c.children) == 6
 
     check_widget_children(
@@ -657,4 +657,3 @@ def test_type_hints():
             '_options_values': (Color.red, Color.green, Color.blue),
         },
     )
-

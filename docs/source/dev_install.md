@@ -83,6 +83,27 @@ If your changes are confined to one package (for example, just in the widgetsnbe
 
   - Try reinstalling ipywidgets
 
+## Code formatting
+
+Formatting is checked in CI and is also available as git hooks, managed by
+[pre-commit](https://pre-commit.com). To install the hooks, run this once in
+your clone after running `jlpm`:
+
+```
+pip install pre-commit
+pre-commit install
+```
+
+`git commit` will then run prettier and eslint over the files you staged, check
+that each package's dependencies still match its imports, and flag things like
+malformed JSON, YAML, or TOML. To check the whole repository, run:
+
+```
+pre-commit run --all-files
+```
+
+To run some of the lint checks without using pre-commit, use `jlpm lint` (to fix errors) or `jlpm lint:check` (to flag errors).
+
 ## Updating widget model specification
 
 To update the widget model specification with changes, do something like this in the repo root:
