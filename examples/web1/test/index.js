@@ -1,14 +1,20 @@
+import { expect } from 'chai';
+
 const widgetsRendered = new Promise((resolve, reject) => {
   setTimeout(
     () => reject(Error('timeout waiting for widgets to render')),
     5000
   ); // 5s timeout
 
-  const listener = () => {
+  // The widgets may already have rendered by the time this test bundle is
+  // loaded, so check the flag set by the page before waiting for its event.
+  if (window.widgetsRendered) {
     resolve();
-    document.removeEventListener('widgetsRendered', listener);
-  };
-  document.addEventListener('widgetsRendered', listener);
+  } else {
+    document.addEventListener('widgetsRendered', () => resolve(), {
+      once: true,
+    });
+  }
 });
 
 describe('index.html', function () {

@@ -2,6 +2,5 @@
 node_modules/
 test/
 .jshintrc
-karma.conf.js
 build_css.js
 examples/

@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', function (event) {
       });
     })
     .then(function () {
+      window.widgetsRendered = true;
       var event = new Event('widgetsRendered');
       document.dispatchEvent(event);
     });

@@ -12,7 +12,19 @@ To run the Javascript tests in each package directory:
 yarn test
 ```
 
-This will run the test suite using `karma` with 'debug' level logging.
+This will run the test suite using
+[Web Test Runner](https://modern-web.dev/docs/test-runner/overview/) in
+headless Firefox and Chromium, launched through Playwright. The first time,
+you may need to download the browsers with:
+
+```sh
+npx playwright install firefox chromium
+```
+
+To run the tests in a single browser, use `yarn test:unit:firefox` or
+`yarn test:unit:chrome`. To debug tests interactively, `yarn test:unit:debug`
+starts the test runner in manual mode so you can open the test page in any
+browser and use its dev tools.
 
 # Visual Regression Tests
 
