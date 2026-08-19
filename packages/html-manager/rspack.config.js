@@ -4,10 +4,23 @@
 // Here we generate the /dist files that allow widget embedding
 
 var path = require('path');
+var rspack = require('@rspack/core');
 
 var options = {
   devtool: 'source-map',
   mode: 'production',
+  optimization: {
+    minimizer: [
+      // Extract license banner comments to a *.LICENSE.txt file, like
+      // webpack's default terser configuration did
+      new rspack.SwcJsMinimizerRspackPlugin({ extractComments: true }),
+      new rspack.LightningCssMinimizerRspackPlugin(),
+    ],
+  },
+  // Process AMD define() calls in bundled modules (like webpack does by
+  // default) so UMD wrappers such as jQuery's do not register stray AMD
+  // modules at runtime when these bundles are loaded alongside requirejs.
+  amd: {},
   module: {
     rules: [
       { test: /\.css$/, use: ['style-loader', 'css-loader'] },
@@ -41,10 +54,12 @@ module.exports = [
     // embed library that depends on requirejs, and can load third-party widgets dynamically
     entry: ['./amd-public-path.js', './lib/libembed-amd.js'],
     output: {
-      library: '@jupyter-widgets/html-manager/dist/libembed-amd',
+      library: {
+        name: '@jupyter-widgets/html-manager/dist/libembed-amd',
+        type: 'amd',
+      },
       filename: 'libembed-amd.js',
       path: path.resolve(__dirname, 'dist', 'amd'),
-      libraryTarget: 'amd',
       publicPath: '', // Set in amd-public-path.js
     },
     // 'module' is the magic requirejs dependency used to set the publicPath
@@ -55,10 +70,9 @@ module.exports = [
     // @jupyter-widgets/html-manager
     entry: ['./amd-public-path.js', './lib/index.js'],
     output: {
-      library: '@jupyter-widgets/html-manager',
+      library: { name: '@jupyter-widgets/html-manager', type: 'amd' },
       filename: 'index.js',
       path: path.resolve(__dirname, 'dist', 'amd'),
-      libraryTarget: 'amd',
       publicPath: '', // Set in amd-public-path.js
     },
     // 'module' is the magic requirejs dependency used to set the publicPath
@@ -69,10 +83,9 @@ module.exports = [
     // @jupyter-widgets/base
     entry: ['./amd-public-path.js', '@jupyter-widgets/base/lib/index'],
     output: {
-      library: '@jupyter-widgets/base',
+      library: { name: '@jupyter-widgets/base', type: 'amd' },
       filename: 'base.js',
       path: path.resolve(__dirname, 'dist', 'amd'),
-      libraryTarget: 'amd',
       publicPath: '', // Set in amd-public-path.js
     },
     // 'module' is the magic requirejs dependency used to set the publicPath
@@ -83,10 +96,9 @@ module.exports = [
     // @jupyter-widgets/controls
     entry: ['./amd-public-path.js', '@jupyter-widgets/controls/lib/index'],
     output: {
-      library: '@jupyter-widgets/controls',
+      library: { name: '@jupyter-widgets/controls', type: 'amd' },
       filename: 'controls.js',
       path: path.resolve(__dirname, 'dist', 'amd'),
-      libraryTarget: 'amd',
       publicPath: '', // Set in amd-public-path.js
     },
     // 'module' is the magic requirejs dependency used to set the publicPath
@@ -97,10 +109,9 @@ module.exports = [
     // @jupyter-widgets/base ipywidgets 7
     entry: ['./amd-public-path.js', '@jupyter-widgets/base7/lib/index'],
     output: {
-      library: '@jupyter-widgets/base7',
+      library: { name: '@jupyter-widgets/base7', type: 'amd' },
       filename: 'base7.js',
       path: path.resolve(__dirname, 'dist', 'amd'),
-      libraryTarget: 'amd',
       publicPath: '', // Set in amd-public-path.js
     },
     // 'module' is the magic requirejs dependency used to set the publicPath
@@ -111,10 +122,9 @@ module.exports = [
     // @jupyter-widgets/controls
     entry: ['./amd-public-path.js', '@jupyter-widgets/controls7/lib/index'],
     output: {
-      library: '@jupyter-widgets/controls7',
+      library: { name: '@jupyter-widgets/controls7', type: 'amd' },
       filename: 'controls7.js',
       path: path.resolve(__dirname, 'dist', 'amd'),
-      libraryTarget: 'amd',
       publicPath: '', // Set in amd-public-path.js
     },
     // 'module' is the magic requirejs dependency used to set the publicPath

@@ -16,7 +16,7 @@
   "main": "src/extension.js",
   "scripts": {
     "build": "npm run build:nbextension",
-    "build:nbextension": "webpack",
+    "build:nbextension": "rspack",
     "clean": "rimraf widgetsnbextension/static",
     "prepublish": "npm run clean && npm run build",
     "watch": "npm run build --watch"
@@ -33,11 +33,11 @@
     "backbone": "1.4.0"
   },
   "devDependencies": {
+    "@rspack/cli": "^1.7.12",
+    "@rspack/core": "^1.7.12",
     "css-loader": "^6.5.1",
     "requirejs": "^2.3.6",
     "rimraf": "^3.0.2",
-    "style-loader": "^3.3.1",
-    "webpack": "^5.65.0",
-    "webpack-cli": "^4.7.2"
+    "style-loader": "^3.3.1"
   }
 }

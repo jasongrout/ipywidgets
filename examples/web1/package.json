@@ -7,7 +7,7 @@
   "author": "IPython",
   "main": "index.js",
   "scripts": {
-    "build": "webpack",
+    "build": "rspack",
     "clean": "rimraf built",
     "test": "npm run test:firefox && npm run test:chrome",
     "test:chrome": "npm run test:default",
@@ -21,6 +21,8 @@
     "@jupyter-widgets/controls": "^5.0.13"
   },
   "devDependencies": {
+    "@rspack/cli": "^1.7.12",
+    "@rspack/core": "^1.7.12",
     "chai": "^4.0.0",
     "css-loader": "^6.5.1",
     "karma": "^6.3.3",
@@ -30,7 +32,6 @@
     "karma-mocha": "^2.0.1",
     "karma-mocha-reporter": "^2.2.5",
     "mocha": "^9.0.0",
-    "style-loader": "^3.3.1",
-    "webpack": "^5.65.0"
+    "style-loader": "^3.3.1"
   }
 }

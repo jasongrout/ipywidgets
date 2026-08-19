@@ -7,7 +7,7 @@
   "author": "IPython",
   "main": "index.js",
   "scripts": {
-    "build": "webpack",
+    "build": "rspack",
     "clean": "rimraf built",
     "test": "npm run test:default",
     "test:default": "echo \"No test specified\""
@@ -20,8 +20,9 @@
     "font-awesome": "^4.7.0"
   },
   "devDependencies": {
+    "@rspack/cli": "^1.7.12",
+    "@rspack/core": "^1.7.12",
     "css-loader": "^6.5.1",
-    "style-loader": "^3.3.1",
-    "webpack": "^5.65.0"
+    "style-loader": "^3.3.1"
   }
 }

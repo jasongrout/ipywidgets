@@ -4,11 +4,12 @@ module.exports = {
   entry: './test/build/index.js',
   output: {
     path: __dirname + '/build',
-    filename: 'coverage.js',
+    filename: 'bundle.js',
   },
   bail: true,
+  amd: {},
   module: {
-    loaders: [
+    rules: [
       { test: /\.css$/, use: ['style-loader', 'css-loader'] },
       { test: /\.md$/, type: 'asset/source' },
       {
@@ -18,13 +19,7 @@ module.exports = {
       },
       { test: /\.ipynb$/, type: 'json' },
     ],
-    preLoaders: [
-      // instrument only testing sources with Istanbul
-      {
-        test: /\.js$/,
-        include: path.resolve('lib/'),
-        loader: 'istanbul-instrumenter',
-      },
-    ],
   },
+  mode: 'development',
+  resolve: { fallback: { util: false } },
 };
