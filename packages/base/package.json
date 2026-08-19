@@ -20,12 +20,12 @@
   "scripts": {
     "build": "npm run build:src",
     "build:src": "tsc --build",
-    "build:test": "tsc --build test && webpack --config test/webpack.conf.js",
+    "build:test": "tsc --build test && rspack --config test/rspack.conf.js",
     "clean": "npm run clean:src",
     "clean:src": "rimraf lib && rimraf tsconfig.tsbuildinfo",
     "prepublish": "npm run clean && npm run build",
     "test": "npm run test:unit",
-    "test:coverage": "npm run build:test && webpack --config test/webpack-cov.conf.js && karma start test/karma-cov.conf.js",
+    "test:coverage": "npm run build:test && rspack --config test/rspack-cov.conf.js && karma start test/karma-cov.conf.js",
     "test:unit": "npm run test:unit:firefox && npm run test:unit:chrome",
     "test:unit:chrome": "npm run test:unit:default -- --browsers=Chrome",
     "test:unit:chrome:debug": "npm run test:unit:default -- --browsers=Chrome --single-run=false",
@@ -46,6 +46,8 @@
     "lodash": "^4.17.4"
   },
   "devDependencies": {
+    "@rspack/cli": "^1.7.12",
+    "@rspack/core": "^1.7.12",
     "@types/base64-js": "^1.2.5",
     "@types/chai": "^4.1.7",
     "@types/chai-as-promised": "^7.1.0",
@@ -65,13 +67,11 @@
     "karma-ie-launcher": "^1.0.0",
     "karma-mocha": "^2.0.1",
     "karma-mocha-reporter": "^2.2.5",
-    "karma-webpack": "^5.0.0",
     "mocha": "^9.0.0",
     "npm-run-all": "^4.1.5",
     "rimraf": "^3.0.2",
     "sinon": "^12.0.1",
     "sinon-chai": "^3.3.0",
-    "typescript": "~6.0.3",
-    "webpack": "^5.65.0"
+    "typescript": "~6.0.3"
   }
 }

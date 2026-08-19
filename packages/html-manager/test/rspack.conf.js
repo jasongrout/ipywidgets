@@ -1,6 +1,5 @@
 var path = require('path');
 var postcss = require('postcss');
-const webpack = require('webpack');
 
 module.exports = {
   mode: 'development',
@@ -10,6 +9,7 @@ module.exports = {
     filename: 'bundle.js',
   },
   bail: true,
+  amd: {},
   module: {
     rules: [
       {

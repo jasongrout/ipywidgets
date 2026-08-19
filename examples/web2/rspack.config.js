@@ -1,8 +1,8 @@
 var path = require('path');
-var webpack = require('webpack');
 
 module.exports = {
   mode: 'development',
+  amd: {},
   devtool: 'source-map',
   entry: './index.js',
   output: {
