@@ -129,8 +129,8 @@ class Output(DOMWidget):
         return capture_decorator
 
     @staticmethod
-    def _resolve_parent_header(ip, kernel):
-        """The parent header to capture for the calling thread, or None.
+    def _resolve_parent(ip, kernel):
+        """The parent to capture for the calling thread: (parent, header).
 
         Prefer the parent the calling thread's stream output will actually
         be attributed to: ``OutStream.parent_header`` resolves per-thread
@@ -138,11 +138,13 @@ class Output(DOMWidget):
         per-thread ContextVar with a process-global fallback on 7). Fall
         back to the shell's parent request, then the kernel's, for streams
         that do not expose a parent (non-ipykernel kernels, redirected
-        stdout).
+        stdout). Returns the richest parent object available (a full
+        request when one exists, else a bare header) together with its
+        header, or (None, None).
         """
         header = getattr(sys.stdout, "parent_header", None)
         if isinstance(header, dict) and header.get("msg_id"):
-            return header
+            return header, header
 
         parent_request = None
         if ip is not None and hasattr(ip, "get_parent"):
@@ -160,25 +162,22 @@ class Output(DOMWidget):
         if isinstance(parent_request, dict):
             header = parent_request.get("header")
             if isinstance(header, dict) and header.get("msg_id"):
-                return header
-        return None
+                return parent_request, header
+        return None, None
 
     @staticmethod
     def _thread_parent_vars(ip):
         """ContextVars holding the calling thread's output parent.
 
-        ipykernel's ``OutStream`` (>= 6.18) and ``ZMQDisplayPublisher``
-        (>= 7) keep the per-thread parent in a ``_parent_header``
-        ContextVar. Setting it affects only the current thread and is
-        exactly reversible with the returned token — unlike
-        ``shell.set_parent``, which also rewrites process-global state
-        shared with every other thread. Objects without such a ContextVar
-        (other kernels such as xeus-python, redirected streams) are
-        skipped, leaving their behavior unchanged.
-
-        Once ipython/ipykernel#1546 (a public thread-scoped
-        ``set_thread_parent``/``reset_thread_parent`` API) is merged,
-        prefer that API over touching these ContextVars directly.
+        Fallback for ipykernel versions without the public
+        ``set_thread_parent`` API (ipython/ipykernel#1546): ``OutStream``
+        (>= 6.18) and ``ZMQDisplayPublisher`` (>= 7) keep the per-thread
+        parent in a ``_parent_header`` ContextVar. Setting it affects only
+        the current thread and is exactly reversible with the returned
+        token — unlike ``shell.set_parent``, which also rewrites
+        process-global state shared with every other thread. Objects
+        without such a ContextVar (other kernels such as xeus-python,
+        redirected streams) are skipped, leaving their behavior unchanged.
         """
         candidates = [sys.stdout, sys.stderr]
         if ip is not None:
@@ -188,6 +187,11 @@ class Output(DOMWidget):
             (getattr(obj, "_parent_header", None) for obj in candidates)
             if isinstance(var, ContextVar)
         ]
+
+    @staticmethod
+    def _reset_thread_parent_vars(pairs):
+        for var, token in reversed(pairs):
+            var.reset(token)
 
     def _show_exception(self, etype, evalue, tb):
         """Display an exception through the kernel, if one is available.
@@ -233,18 +237,29 @@ class Output(DOMWidget):
         elif self.comm is not None and getattr(self.comm, 'kernel', None) is not None:
             kernel = self.comm.kernel
 
-        tokens = ()
+        reset = None
+        tokens = None
         captured = False
         if kernel:
-            header = self._resolve_parent_header(ip, kernel)
+            parent, header = self._resolve_parent(ip, kernel)
             if header:
-                # Pin the calling thread's stream/display parents to the
-                # captured parent for the duration of the block, so output
-                # produced in this thread carries the same parent msg_id the
-                # frontend hook matches on.
-                tokens = tuple(
-                    (var, var.set(header)) for var in self._thread_parent_vars(ip)
-                )
+                # Pin the calling thread's parents to the captured parent
+                # for the duration of the block, so output produced in this
+                # thread carries the same parent msg_id the frontend hook
+                # matches on.
+                if hasattr(ip, "set_thread_parent") and hasattr(ip, "reset_thread_parent"):
+                    # ipykernel with the public thread-scoped parent API
+                    # (ipython/ipykernel#1546): thread-only and exactly
+                    # reversible, covering streams, display and get_parent.
+                    tokens = ip.set_thread_parent(parent)
+                    reset = ip.reset_thread_parent
+                else:
+                    # Older ipykernel: pin the stream/display ContextVars
+                    # directly.
+                    tokens = tuple(
+                        (var, var.set(header)) for var in self._thread_parent_vars(ip)
+                    )
+                    reset = self._reset_thread_parent_vars
                 captured = True
                 with self.__counter_lock:
                     self.__counter += 1
@@ -261,8 +276,8 @@ class Output(DOMWidget):
             self._flush()
             # Restore the thread's previous parents exactly; the override
             # must not outlive the block.
-            for var, token in reversed(tokens):
-                var.reset(token)
+            if reset is not None:
+                reset(tokens)
             if captured:
                 with self.__counter_lock:
                     self.__counter -= 1
